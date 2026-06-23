@@ -202,6 +202,9 @@ if ( !class_exists( 'WP_Gift_Registry' ) ) {
 			// Hook ajax action for resetting reserved gift parts
 			$this->loader->add_action( 'wp_ajax_reset_reserved_parts', $plugin_admin, 'reset_reserved_parts' );
 
+			// Hook ajax action for saving drag-and-drop gift order
+			$this->loader->add_action( 'wp_ajax_wpgr_save_gift_order', $plugin_admin, 'save_gift_order' );
+
 
 		// Old version stuff for compatibility
 

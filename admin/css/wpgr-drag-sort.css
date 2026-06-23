@@ -1,0 +1,53 @@
+/* ---------------------------------------------------------------
+   WPGR Drag-and-drop gift reorder
+--------------------------------------------------------------- */
+
+.cmb-group-title .wpgr-drag-handle {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 18px;
+    line-height: 1;
+    color: #aaa;
+    cursor: grab;
+    vertical-align: middle;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    z-index: 10;
+}
+.cmb-group-title .wpgr-drag-handle:hover  { color: #555; }
+.cmb-group-title .wpgr-drag-handle:active { cursor: grabbing; }
+
+/* Ghost = the slot left behind in the list while dragging */
+.wpgr-sort-ghost {
+    background: #e8f0fe;
+    border: 2px dashed #4a90d9;
+    border-radius: 3px;
+    opacity: 0.5;
+}
+
+/* Chosen = the item being dragged (stays in place in native mode;
+   invisible in fallback mode because the fallback clone is used) */
+.wpgr-sort-chosen { opacity: 0.6; }
+
+/* Fallback = the floating clone that follows the cursor */
+.wpgr-sort-fallback {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+    opacity: 0.9;
+    background: #fff;
+    border-radius: 3px;
+}
+
+/* Drag = class added to the item while dragging (fallback mode) */
+.wpgr-sort-drag { opacity: 0.5; }
+
+/* Inline save indicator */
+.wpgr-sort-saving,
+.wpgr-sort-saved {
+    display: inline-block;
+    margin: 4px 0 4px 12px;
+    font-size: 13px;
+    font-style: italic;
+}
+.wpgr-sort-saving { color: #888; }
+.wpgr-sort-saved  { color: #0073aa; font-weight: bold; }

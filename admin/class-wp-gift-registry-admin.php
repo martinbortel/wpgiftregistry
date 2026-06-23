@@ -75,6 +75,7 @@ class WP_Gift_Registry_Admin {
 		 */
 
 		wp_enqueue_style( $this->plugin_name . '-style-admin', plugin_dir_url( __FILE__ ) . 'css/style-admin.css', array(), $this->version, 'all' );
+		wp_enqueue_style( $this->plugin_name . '-drag-sort', plugin_dir_url( __FILE__ ) . 'css/wpgr-drag-sort.css', array(), $this->version, 'all' );
 	}
 
 	/**
@@ -96,12 +97,14 @@ class WP_Gift_Registry_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/main-admin.js', array( 'jquery' ), $this->version, true );
-		wp_enqueue_script( $this->plugin_name . '_vendor', plugin_dir_url( __FILE__ ) . 'js/vendor/vendor.js', array(), $this->version, true );
+		// vendor.js must load first so window.Sortable is available to main-admin.js
+		wp_enqueue_script( $this->plugin_name . '_vendor', plugin_dir_url( __FILE__ ) . 'js/vendor/vendor.js', array( 'jquery' ), $this->version, true );
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/main-admin.js', array( 'jquery', $this->plugin_name . '_vendor' ), $this->version, true );
 
 		// declare the URL to the file that handles the AJAX request (wp-admin/admin-ajax.php)
 		wp_localize_script( $this->plugin_name, 'variables', array(
-			'ajaxurl' => admin_url( 'admin-ajax.php' ),
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+			'wpgr_sort_nonce'  => wp_create_nonce( 'wpgr_save_gift_order' ),
 		) );
 
 	}
@@ -1095,4 +1098,63 @@ class WP_Gift_Registry_Admin {
 		add_settings_error( 'wishlist' . '-notices', '', __( 'Wishlist settings updated.', 'wpgiftregistry' ), 'updated' );
 		settings_errors( 'wishlist' . '-notices' );
 	}
+	/**
+	 * Save a user-defined gift ordering to post meta.
+	 *
+	 * Receives an ordered array of gift_id values (the unique IDs stored in the
+	 * cmb2_unique_id hidden field) and rewrites the wpgr_wishlist post-meta array
+	 * so the gifts appear in that order on both front-end and back-end.
+	 *
+	 * @since 1.4.13
+	 */
+	public function save_gift_order() {
+
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'wpgr_save_gift_order' ) ) {
+			wp_send_json_error( array( 'message' => 'Nonce verification failed.' ) );
+			return;
+		}
+
+		$post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+		if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_send_json_error( array( 'message' => 'Permission denied.' ) );
+			return;
+		}
+
+		// $order is an array of original data-iterator (0-based index) values
+		// in the new desired sequence, e.g. [2, 0, 1] means: old row2, row0, row1.
+		$order = isset( $_POST['order'] ) ? array_map( 'intval', (array) $_POST['order'] ) : array();
+		if ( empty( $order ) ) {
+			wp_send_json_error( array( 'message' => 'Empty order.' ) );
+			return;
+		}
+
+		$wishlist = get_post_meta( $post_id, 'wpgr_wishlist', true );
+		if ( ! is_array( $wishlist ) || empty( $wishlist ) ) {
+			wp_send_json_error( array( 'message' => 'No wishlist data found.' ) );
+			return;
+		}
+
+		// Rebuild the array in the new order.
+		// Any index in $order that is out of range is skipped.
+		// Any index from the original array not mentioned in $order is appended.
+		$reordered = array();
+		$used      = array();
+		foreach ( $order as $old_idx ) {
+			if ( isset( $wishlist[ $old_idx ] ) ) {
+				$reordered[] = $wishlist[ $old_idx ];
+				$used[]      = $old_idx;
+			}
+		}
+		// Append any gifts not included in the order array (safety net).
+		foreach ( $wishlist as $idx => $gift ) {
+			if ( ! in_array( $idx, $used, true ) ) {
+				$reordered[] = $gift;
+			}
+		}
+
+		update_post_meta( $post_id, 'wpgr_wishlist', $reordered );
+
+		wp_send_json_success( array( 'message' => 'Order saved.' ) );
+	}
+
 }
